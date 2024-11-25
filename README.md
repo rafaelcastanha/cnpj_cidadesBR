@@ -1,6 +1,6 @@
 # CNPJ Cidades BR
 
-Este programa irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmento, disponível em:
+Este programa, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmento, disponível em:
 https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
 1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
@@ -23,5 +23,7 @@ https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica-
   viii) Endereco_Completo: Concatena todas informações do endereço da empresa 
   
 *Desenvolvido por Rafael Gutierres Castanha*
+
 *Contato - r.castanha@gmail.com*
+
 *github.com/rafaelcastanha/cnpj_cidadesBR*
