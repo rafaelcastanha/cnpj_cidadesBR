@@ -13,14 +13,14 @@ https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica-
 8) Digite o código e aguarde. Caso deseje os cnpj de todo o Brasil, digite: 'Brasil'. Caso o código da cidade esteja incorreto, o programa retornará um erro
 9) O programa irá salvar um arquivo csv contendo os dados de todos os CNPJ do município ou de todo Brasil em seu diretório padrão
 10) A base de dados é enriquecida com alguns cruzamento de dados:
-  i) CNPJ_Completo: 14 dígitos de cada cnpj encontrado, Matriz_filial: identificação matriz ou filial de cada cnpj
-  ii) SITUACAO_CADASTRA: Classificação em Ativa, Baixada, Inapta, Nula ou Suspensa; iii)
-  iii) Data_SitCadastral_Padrao: Data da situação cadastral no formato dd/mm/aaaa;
-  iv) Descritor_Motivo_SitCadastral: Decodifica o motivo da situaçã cadastral;
-  v) Data_inicio_padrao: converte a data para o formato dd/mm/aaaa;
-  vi) Descritor_CNAE: Decodifica o código CNAE primário;
-  vii) Atividade_Economica: Classifica a atividade economica da emrpesa segundo o código CNAE;
-  viii) Endereco_Completo: Concatena todas informações do endereço da empresa 
+ - CNPJ_Completo: 14 dígitos de cada cnpj encontrado, Matriz_filial: identificação matriz ou filial de cada cnpj.
+ - SITUACAO_CADASTRA: Classificação em Ativa, Baixada, Inapta, Nula ou Suspensa. 
+ - Data_SitCadastral_Padrao: Data da situação cadastral no formato dd/mm/aaaa.
+ - Descritor_Motivo_SitCadastral: Decodifica o motivo da situaçã cadastral.
+ - Data_inicio_padrao: converte a data para o formato dd/mm/aaaa.
+ - Descritor_CNAE: Decodifica o código CNAE primário.
+ - Atividade_Economica: Classifica a atividade economica da emrpesa segundo o código CNAE.
+ - Endereco_Completo: Concatena todas informações do endereço da empresa.
   
 *Desenvolvido por Rafael Gutierres Castanha*
 
