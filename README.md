@@ -1,6 +1,6 @@
 # CNPJ Cidades BR
 
-Este programa, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmento, disponível em:
+O programa *CNPJ_Cidades*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmento, disponível em:
 https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
 1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
