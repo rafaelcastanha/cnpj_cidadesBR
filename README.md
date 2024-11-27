@@ -3,6 +3,8 @@
 O programa *CNPJ_Cidades*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmento, disponível em:
 https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
+O programa tem serventia para gestão da atividade empresarial das cidades brasileiras com empresas inscritas no Cadastro Nacional da Pessoa Jurídica (CNPJ). 
+
 1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
 2) Baixe a o arquivo 'Cnaes.zip'
 3) Execute o programa
