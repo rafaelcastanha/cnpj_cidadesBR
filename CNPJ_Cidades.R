@@ -9,7 +9,7 @@
 # organizado pelo Ministério da Fazenda e disponível em:
 # https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
-#Este programa irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip'
+#Este programa e capaz de fundir todas as 10 dez bases de dados 'Estabelecimentos.zip'
 #atualizadas mensalmente e disponíveis publicamente em:
 #https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/?C=N;O=D
   
@@ -26,6 +26,15 @@
   # 9 - O programa irá salvar um arquivo csv contendo os dados de todos os CNPJ do município ou de todo Brasil em seu diretório padrão
   # 10 - A base de dados é enriquecida com alguns cruzamento de dados.
   
+  
+#Para visualização de dados execute:
+
+# 'tabela_atv_economica' - tabela de frequência da atividade economica das empresas
+# 'tabela_cnae' - tabela de frequência dos CNAE das empresas
+# 'tabela_sitcadastral' - tabela de frequência da situação cadastral das empresas
+# 'tabela_sitgeral' - tabela cruzada entre situação cadastral e descritores do CNAE
+# 'inicio_atividade()'  - grafico de evolução temporal do início de atividade de das empresas
+  
 ############# Desenvolvido por Rafael Gutierres Castanha
 ############# Contato - r.castanha@gmail.com
 ############# github.com/rafaelcastanha/CNPJ_Cidades
@@ -35,6 +44,7 @@
         
   
 #Instale a biblioteca se necessário
+
 #install.packages('dplyr')
   
 library(dplyr)
@@ -44,12 +54,18 @@ library(dplyr)
 
 suppressWarnings({
   
-    
+
+print("Selecione as bases de 'Estabelecimentos.zip' que irão compor o arquivo final")
+      
 corpus<-choose.files(multi = T) #seleciona os arquivos da base de dados 
 
 # Leitura do arquivo que contém os descritores dos CNAES. Arquivo Cnaes.zip
 
+print("Selecione o arquivo com os códigos CNAE - Classificação Nacional de Atividades Econômicas")
+
 cnae<-read.csv(file.choose(), sep=";", header = F,colClasses = "character")
+
+print("Lendo arquivos...Aguarde")
 
 # Ajuste dos descritores CNAE
 
@@ -257,6 +273,8 @@ sit_cad_4<-gsub("4", "INAPTA", sit_cad_3)
 sit_cad_5<-gsub("08", "BAIXADA", sit_cad_4)
 sit_cad_6<-gsub("8", "BAIXADA", sit_cad_5)
 sit_cad_7<-gsub("1", "NULA", sit_cad_6)
+sit_cad_8<-gsub("0INAPTA", "INAPTA",sit_cad_7)
+sit_cad_9<-gsub("0SUSPENSA", "SUSPENSA",sit_cad_8)
 
 
 ### Ajuste data de inicio
@@ -456,7 +474,7 @@ atividade_economica<- mapa1[as.character(substr(df_sc$CNAE_FISCAL_PRINCIPAL, 1, 
 df_sc_total<-data.frame(df_sc$CNPJ_BASICO,df_sc$CNPJ_ORDEM,df_sc$CNPJ_DV,
                         cnpj_completo ,df_sc$IDENTIFICADOR_MATRIZ_FILIAL,mtz_filial_2,
                         df_sc$NOME_FANTASIA, df_sc$COD_SITUACAO_CADASTRAL,
-                        sit_cad_6,df_sc$DATA_SITUACAO_CADASTRAL,data_sit,
+                        sit_cad_9,df_sc$DATA_SITUACAO_CADASTRAL,data_sit,
                         df_sc$MOTIVO_SITUACAO_CADASTRAL,motivo_sit_cad, df_sc$NOME_DA_CIDADE_NO_EXTERIOR,
                         df_sc$PAIS, df_sc$DATA_DE_INICIO_ATIVIDADE,data_inicio,ano_inicio,
                         df_sc$CNAE_FISCAL_PRINCIPAL, atividade_economica,
@@ -510,6 +528,18 @@ remove(cnae_merge)
 write.csv(df_final, paste0("dados_cnpj_","cidade_codigo_",cidade,".csv"), sep=";", row.names = F, col.names = T,fileEncoding = "UTF-8")
 
 print("Os dados foram combinados corretamente e foram salvos em seu diretório padrão")
+
+#Visualização de dados
+
+tabela_atv_economica<-table(df_final$Atividade_Economica)
+
+tabela_cnae<-table(df_final$Descritor_CNAE)
+
+inicio_atividade<-function(){return(barplot(table(df_final$Ano_Inicio)))}
+
+tabela_sitcadastral<-table(df_final$SITUACAO_CADASTRAL)
+
+tabela_sitgeral<-t(as.data.frame.matrix(as.matrix(table(df_final$SITUACAO_CADASTRAL,df_final$Descritor_CNAE))))
 
 })
 
