@@ -23,9 +23,14 @@ O programa tem serventia para gestão da atividade empresarial das cidades brasi
  - Descritor_CNAE: Decodifica o código CNAE primário.
  - Atividade_Economica: Classifica a atividade economica da emrpesa segundo o código CNAE.
  - Endereco_Completo: Concatena todas informações do endereço da empresa.
+
+Para visualização de dados execute:
+- 'tabela_atv_economica' - tabela de distribuição frequência da atividade economica das empresas
+- 'tabela_cnae' - tabela de distribuição de frequência dos CNAE das empresas
+- 'tabela_sitcadastral' - tabela de distribuição de frequência da situação cadastral das empresas
+- 'tabela_sitgeral' - tabela de frequência (dupla) entre situação cadastral e descritores do CNAE
+- 'inicio_atividade()'  - grafico de evolução temporal do início de atividade de das empresas
   
 *Desenvolvido por Rafael Gutierres Castanha*
-
 *Contato - r.castanha@gmail.com*
-
 *github.com/rafaelcastanha/cnpj_cidadesBR*
