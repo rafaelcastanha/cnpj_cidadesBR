@@ -7,7 +7,7 @@ O programa tem serventia para gestão da atividade empresarial das cidades brasi
 
 1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
 2) Baixe a o arquivo 'Cnaes.zip'
-3) Execute o programa
+3) Execute o programa (instale a biblioteca 'dplyr' se necessário)
 4) O programa irá abrir uma caixa de dialogo - Carregue as 10 bases 'Estabelecimentos.zip'
 5) Após o carregamente, o programa irá abrir uma nova caixa. Carregue 'Cnaes.zip'
 6) Aguarde alguns minutos, devido o tamanho de todos os aquivos
