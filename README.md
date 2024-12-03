@@ -32,5 +32,7 @@ Para visualização de dados execute:
 - 'inicio_atividade()'  - grafico de evolução temporal do início de atividade de das empresas
   
 *Desenvolvido por Rafael Gutierres Castanha*
+
 *Contato - r.castanha@gmail.com*
+
 *github.com/rafaelcastanha/cnpj_cidadesBR*
