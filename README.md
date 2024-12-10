@@ -1,6 +1,6 @@
 # CNPJ Cidades BR
 
-O programa *CNPJ_Cidades*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmente, disponível em:
+O programa *CNPJ_CidadesBR*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmente, disponível em:
 https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
 O programa tem serventia para gestão da atividade empresarial das cidades brasileiras com empresas inscritas no Cadastro Nacional da Pessoa Jurídica (CNPJ). 
