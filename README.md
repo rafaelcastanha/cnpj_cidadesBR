@@ -5,7 +5,7 @@ https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica-
 
 O programa tem serventia para gestão da atividade empresarial das cidades brasileiras com empresas inscritas no Cadastro Nacional da Pessoa Jurídica (CNPJ). 
 
-1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
+1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip' e descompacte os arquivos em seu computador
 2) Baixe a o arquivo 'Cnaes.zip' ou o aqruivo 'CNAE.CNAECSV'
 3) Execute o programa (instale a biblioteca 'dplyr' se necessário)
 4) O programa irá abrir uma caixa de dialogo - Carregue as 10 bases 'Estabelecimentos.zip'
@@ -15,7 +15,8 @@ O programa tem serventia para gestão da atividade empresarial das cidades brasi
 8) Digite o código e aguarde. Caso deseje os cnpj de todo o Brasil, digite: 'Brasil'. Caso o código da cidade esteja incorreto, o programa retornará um erro
 9) O programa irá salvar um arquivo csv contendo os dados de todos os CNPJ do município ou de todo Brasil em seu diretório padrão
 10) A base de dados é enriquecida com alguns cruzamento de dados:
- - CNPJ_Completo: 14 dígitos de cada cnpj encontrado, Matriz_filial: identificação matriz ou filial de cada cnpj.
+ - CNPJ_Completo: 14 dígitos de cada cnpj encontrado.
+ - Matriz_filial: identificação matriz ou filial de cada cnpj.
  - SITUACAO_CADASTRA: Classificação em Ativa, Baixada, Inapta, Nula ou Suspensa. 
  - Data_SitCadastral_Padrao: Data da situação cadastral no formato dd/mm/aaaa.
  - Descritor_Motivo_SitCadastral: Decodifica o motivo da situaçã cadastral.
