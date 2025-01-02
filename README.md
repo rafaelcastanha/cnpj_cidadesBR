@@ -31,6 +31,8 @@ Para visualização de dados execute:
 - 'tabela_sitcadastral' - tabela de distribuição de frequência da situação cadastral das empresas
 - 'tabela_sitgeral' - tabela de frequência (dupla) entre situação cadastral e descritores do CNAE
 - 'inicio_atividade()'  - grafico de evolução temporal do início de atividade de das empresas
+
+O conjunto de dados 'Cadastro Nacional da Pessoa Jurídica - CNPJ' está sob licença Creative Commons Attribution.
   
 *Desenvolvido por Rafael Gutierres Castanha*
 
