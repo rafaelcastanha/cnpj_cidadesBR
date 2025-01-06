@@ -480,7 +480,7 @@ df_sc_total<-data.frame(df_sc$CNPJ_BASICO,df_sc$CNPJ_ORDEM,df_sc$CNPJ_DV,
                         df_sc$CNAE_FISCAL_PRINCIPAL, atividade_economica,
                         df_sc$CNAE_FISCAL_SECUNDARIA,df_sc$TIPO_DE_LOGRADOURO,
                         df_sc$LOGRADOURO, df_sc$NUMERO, df_sc$COMPLEMENTO, df_sc$BAIRRO,
-                        df_sc$CEP, df_sc$UF,end,df_sc$DDD_1, df_sc$TELEFONE_1,
+                        df_sc$CEP, df_sc$UF,end,df_sc$MUNICIPIO, df_sc$DDD_1, df_sc$TELEFONE_1,
                         df_sc$DDD_2, df_sc$TELEFONE_2, df_sc$DDD_DO_FAX, df_sc$FAX,
                         df_sc$CORREIO_ELETRONICO, df_sc$SITUACAO_ESPECIAL, df_sc$DATA_DA_SITUACAO_ESPECIAL,
                         data_sit_esp)
@@ -494,7 +494,7 @@ colnames(df_sc_total)<-c("CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV",
                          "CNAE_FISCAL_PRINCIPAL", "Atividade_Economica",
                          "CNAE_Secundaria","TIPO_DE_LOGRADOURO",
                          "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO",
-                         "CEP", "UF", "Endereco_Completo", "DDD_1", "TELEFONE_1",
+                         "CEP", "UF", "Endereco_Completo","Cod_Municipio", "DDD_1", "TELEFONE_1",
                          "DDD_2", "TELEFONE_2", "DDD_DO_FAX", "FAX",
                          "CORREIO_ELETRONICO", "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL",
                          "Data_SitEspecial_Padrao")
@@ -517,7 +517,7 @@ df_final <- cnae_merge %>%
          "PAIS", "DATA_DE_INICIO_ATIVIDADE","Data_inicio_Padrao","Ano_Inicio",
          "CNAE_FISCAL_PRINCIPAL", "Descritor_CNAE","Atividade_Economica",
          "CNAE_Secundaria","TIPO_DE_LOGRADOURO", "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO",
-         "CEP", "UF", "Endereco_Completo", "DDD_1", "TELEFONE_1",
+         "CEP", "UF", "Endereco_Completo","Cod_Municipio", "DDD_1", "TELEFONE_1",
          "DDD_2", "TELEFONE_2", "DDD_DO_FAX", "FAX",
          "CORREIO_ELETRONICO", "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL", "Data_SitEspecial_Padrao")
 
@@ -535,11 +535,14 @@ tabela_atv_economica<-table(df_final$Atividade_Economica)
 
 tabela_cnae<-table(df_final$Descritor_CNAE)
 
-inicio_atividade<-function(){return(barplot(table(df_final$Ano_Inicio)))}
+inicio_atividade<-function(){return(barplot(table(df_final$Ano_Inicio),
+                                            ylim = c(0,10+max(table(df_final$Ano_Inicio))
+                                                        )))}
 
 tabela_sitcadastral<-table(df_final$SITUACAO_CADASTRAL)
 
-tabela_sitgeral<-t(as.data.frame.matrix(as.matrix(table(df_final$SITUACAO_CADASTRAL,df_final$Descritor_CNAE))))
+tabela_sitgeral<-t(as.data.frame.matrix(as.matrix(table
+            (df_final$SITUACAO_CADASTRAL,df_final$Descritor_CNAE))))
 
 })
 
