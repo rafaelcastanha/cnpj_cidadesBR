@@ -1,31 +1,52 @@
 # CNPJ Cidades BR
 
-O programa *CNPJ_CidadesBR*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos.zip' organizado pelo Ministério da Fazenda e atualizados mensalmente, disponível em:
+O programa *CNPJ_CidadesBR*, em linguagem R, irá fundir todas as 10 (dez) bases de dados 'Estabelecimentos' organizadas pelo Ministério da Fazenda e atualizadas mensalmente, disponíveis em:
 https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
 
 O programa tem serventia para gestão da atividade empresarial das cidades brasileiras com empresas inscritas no Cadastro Nacional da Pessoa Jurídica (CNPJ). 
 
-1) Baixe todas as 10 bases de dados 'Estabelecimentos.zip' e descompacte os arquivos em seu computador
-2) Baixe a o arquivo 'Cnaes.zip' ou o aqruivo 'CNAE.CNAECSV'
-3) Execute o programa (instale a biblioteca 'dplyr' se necessário)
-4) O programa irá abrir uma caixa de dialogo - Carregue as 10 bases 'Estabelecimentos.zip'
-5) Após o carregamente, o programa irá abrir uma nova caixa. Carregue o aqruivo 'CNAE.CNAECSV'
-6) Aguarde alguns minutos, devido o tamanho de todos os aquivos
-7) Após executar, o programa irá solicitar o código do municipio que deseja. Consulte o código de cada município no arquivo 'Municipios.zip' da mesma base ou utilize 'Municipios.txt' deste repositório.
-8) Digite o código e aguarde. Caso deseje os cnpj de todo o Brasil, digite: 'Brasil'. Caso o código da cidade esteja incorreto, o programa retornará um erro
-9) O programa irá salvar um arquivo csv contendo os dados de todos os CNPJ do município ou de todo Brasil em seu diretório padrão
-10) Todos cabeçalhos da base são baseados nos metadados disponibilizados pelo Ministério da Fazenda e estão disponíveis em 'metadados-cnpj'. A base de dados é enriquecida com alguns cruzamento de dados:
- - CNPJ_Completo: 14 dígitos de cada cnpj encontrado.
- - Matriz_filial: identificação matriz ou filial de cada cnpj.
- - SITUACAO_CADASTRA: Classificação em Ativa, Baixada, Inapta, Nula ou Suspensa. 
- - Data_SitCadastral_Padrao: Data da situação cadastral no formato dd/mm/aaaa.
- - Descritor_Motivo_SitCadastral: Decodifica o motivo da situaçã cadastral.
- - Data_inicio_padrao: converte a data para o formato dd/mm/aaaa.
- - Descritor_CNAE: Decodifica o código CNAE primário.
- - Atividade_Economica: Classifica a atividade economica da emrpesa segundo o código CNAE.
- - Endereco_Completo: Concatena todas informações do endereço da empresa.
+## Como usar
 
-Para visualização de dados execute:
+1) Baixe as 10 bases de dados 'Estabelecimentos' (arquivos .zip, ou os arquivos .ESTABELE já descompactados; o programa aceita os dois)
+2) Baixe o arquivo 'Cnaes.zip' ou utilize o arquivo 'CNAE.CNAECSV' deste repositório
+3) Instale os pacotes necessários, se preciso: `install.packages("data.table")` e, para saída em Excel, `install.packages("openxlsx")`
+4) Execute o programa `CNPJ_Cidades.R` (no RStudio ou no console do R)
+5) O programa faz três perguntas, antes de ler os arquivos:
+   - Formato do arquivo de saída: CSV (C) ou Excel (X)
+   - Se deseja somente empresas ativas (S/N)
+   - Código do município, ou 'Brasil'. Consulte o código de cada município no arquivo 'Municipios.zip' da mesma base ou utilize 'Municipios.txt' deste repositório
+6) O programa abre uma caixa de diálogo - Carregue as 10 bases 'Estabelecimentos'
+7) Em seguida, abre uma nova caixa - Carregue 'Cnaes.zip' ou 'CNAE.CNAECSV'
+8) Aguarde alguns minutos, devido ao tamanho dos arquivos. Cada arquivo é filtrado assim que é lido, o que reduz o uso de memória
+9) O programa salva o arquivo (CSV ou XLSX) no diretório de trabalho do R (`getwd()`) e informa o caminho
+
+## Formato de saída
+
+- **Excel (.xlsx)**: códigos e CNPJ ficam como texto (preserva os zeros à esquerda) e as datas ficam como datas (dd/mm/aaaa). Formato recomendado para municípios.
+- **CSV**: separado por ponto e vírgula (;), UTF-8 com BOM. Ao abrir no Excel ou importar pelo Power Query, defina as colunas de código e CNPJ como **texto**; caso contrário, o Excel remove os zeros à esquerda.
+- O Excel comporta no máximo 1.048.575 linhas. Acima disso, ou para 'Brasil', o programa grava CSV e avisa.
+- Para 'Brasil' os dados são gravados em CSV arquivo por arquivo, sem montar tudo na memória. Nesse caso as tabelas e o gráfico abaixo não são gerados.
+- O nome do arquivo segue o padrão `dados_cnpj_cidade_codigo_XXXX.csv|xlsx` (com `_ativas` ao final, quando o filtro de ativas é usado).
+
+## Colunas
+
+Todos os cabeçalhos da base são baseados nos metadados disponibilizados pelo Ministério da Fazenda e estão disponíveis em 'cnpj-metadados.pdf'. A base de dados é enriquecida com alguns cruzamentos de dados:
+
+ - CNPJ_COMPLETO: 14 dígitos de cada CNPJ encontrado.
+ - Matriz_Filial: identificação matriz ou filial de cada CNPJ.
+ - SITUACAO_CADASTRAL: Classificação em Ativa, Baixada, Inapta, Nula ou Suspensa. 
+ - Data_SitCadastral_Padrao: Data da situação cadastral no formato dd/mm/aaaa.
+ - Descritor_Motivo_SitCadastral: Decodifica o motivo da situação cadastral.
+ - Data_inicio_Padrao: converte a data de início de atividade para o formato dd/mm/aaaa.
+ - Ano_Inicio: ano de início da atividade.
+ - Descritor_CNAE: Decodifica o código CNAE primário.
+ - Atividade_Economica: Classifica a atividade econômica da empresa segundo o código CNAE.
+ - Endereco_Completo: Concatena as informações do endereço da empresa (partes vazias são omitidas).
+ - Data_SitEspecial_Padrao: converte a data da situação especial para o formato dd/mm/aaaa.
+
+## Visualização de dados
+
+Para municípios (não disponível para 'Brasil'), execute:
 - 'tabela_atv_economica' - tabela de distribuição frequência da atividade economica das empresas
 - 'tabela_cnae' - tabela de distribuição de frequência dos CNAE das empresas
 - 'tabela_sitcadastral' - tabela de distribuição de frequência da situação cadastral das empresas
