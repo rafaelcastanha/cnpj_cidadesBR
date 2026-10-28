@@ -1,549 +1,497 @@
 {
-  
+
 ############# Desenvolvido por Rafael Gutierres Castanha
 ############# Contato - r.castanha@gmail.com
-############# github.com/rafaelcastanha/CNPJ_Cidades
-  
-  
+############# github.com/rafaelcastanha/cnpj_cidadesBR
+
+
 #Este programa se baseia nos dados do dataset 'Cadastro Nacional da Pessoa Jurídica - CNPJ'
 # organizado pelo Ministério da Fazenda e disponível em:
-# https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj  
+# https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj
 
-#Este programa e capaz de fundir todas as 10 dez bases de dados 'Estabelecimentos.zip'
+#Este programa é capaz de fundir todas as 10 bases de dados 'Estabelecimentos'
 #atualizadas mensalmente e disponíveis publicamente em:
 #https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/?C=N;O=D
-  
+
 #Passo a passo:
 
-  # 1 - Baixe todas as 10 bases de dados 'Estabelecimentos.zip'
-  # 2 - Baixe a o arquivo 'Cnaes.zip'
+  # 1 - Baixe as 10 bases 'Estabelecimentos' (.zip, ou os arquivos .ESTABELE já extraídos)
+  # 2 - Baixe o arquivo 'Cnaes.zip'
   # 3 - Execute o programa
-  # 4 - O programa irá abrir uma caixa de dialogo - Carregue as 10 bases 'Estabelecimentos.zip'
-  # 5 - Após o carregamente, o programa irá abrir uma nova caixa. Carregue 'Cnaes.zip'
-  # 6 - Aguarde alguns minutos, devido o tamanho de todos os aquivos
-  # 7 - Após executar, o programa irá solicitar o código do municipio que deseja. Consulte o arquivo 'Municipios.zip'
-  # 8 - Digite o código e aguarde. Caso deseje os cnpj de todo o Brasil, digite: Brasil. Caso o código da cidade esteja incorreto, o programa retornará um erro
-  # 9 - O programa irá salvar um arquivo csv contendo os dados de todos os CNPJ do município ou de todo Brasil em seu diretório padrão
-  # 10 - A base de dados é enriquecida com alguns cruzamento de dados.
-  
-  
-#Para visualização de dados execute:
+  # 4 - O programa pergunta o formato de saída (CSV ou Excel), se deseja somente empresas ativas
+  #     e o código do município. Consulte o arquivo 'Municipios.zip'. Para todo o Brasil, digite: Brasil
+  # 5 - O programa abre uma caixa de diálogo - Carregue as 10 bases 'Estabelecimentos'
+  # 6 - Em seguida, abre uma nova caixa. Carregue 'Cnaes.zip'
+  # 7 - Aguarde alguns minutos, devido o tamanho dos arquivos
+  # 8 - O programa salva o arquivo (CSV ou XLSX) no diretório de trabalho: getwd()
+  # 9 - A base de dados é enriquecida com alguns cruzamentos de dados.
+
+# Observações:
+  # - XLSX mantém códigos e CNPJ como texto (preserva os zeros à esquerda) e as datas como datas.
+  # - CSV é gravado com ';' e UTF-8 com BOM. Ao abrir no Excel (ou importar pelo Power Query),
+  #   defina as colunas de código e CNPJ como TEXTO, ou o Excel remove os zeros à esquerda.
+  # - Excel comporta no máximo 1.048.575 linhas. Acima disso (ou para 'Brasil') o programa grava CSV.
+  # - Para 'Brasil' os dados são gravados arquivo a arquivo, sem montar tudo na memória.
+
+#Para visualização de dados (não disponível para 'Brasil') execute:
 
 # 'tabela_atv_economica' - tabela de frequência da atividade economica das empresas
 # 'tabela_cnae' - tabela de frequência dos CNAE das empresas
 # 'tabela_sitcadastral' - tabela de frequência da situação cadastral das empresas
 # 'tabela_sitgeral' - tabela cruzada entre situação cadastral e descritores do CNAE
 # 'inicio_atividade()'  - grafico de evolução temporal do início de atividade de das empresas
-  
+
 ############# Desenvolvido por Rafael Gutierres Castanha
 ############# Contato - r.castanha@gmail.com
-############# github.com/rafaelcastanha/CNPJ_Cidades
-  
+############# github.com/rafaelcastanha/cnpj_cidadesBR
 
-############################################################################################  
-        
-  
-#Instale a biblioteca se necessário
 
-#install.packages('dplyr')
-  
-library(dplyr)
+############################################################################################
 
-# Faça o dowload e carregue todos arquivos 'Estabelecimentos.zip' 
-# de https://dadosabertos.rfb.gov.br/CNPJ/dados_abertos_cnpj/?C=N;O=D  
+if (!interactive()) {
+  stop("Este programa faz perguntas ao usuário. Execute-o no RStudio ou no console do R.")
+}
 
-suppressWarnings({
-  
+### Perguntas iniciais (feitas antes de ler os arquivos, que é a etapa demorada)
 
-print("Selecione as bases de 'Estabelecimentos.zip' que irão compor o arquivo final")
-      
-corpus<-choose.files(multi = T) #seleciona os arquivos da base de dados 
+perguntar <- function(mensagem, validar, erro) {
+  repeat {
+    resposta <- trimws(readline(mensagem))
+    if (validar(resposta)) return(resposta)
+    message(erro)
+  }
+}
+
+formato <- perguntar("Formato do arquivo de saída - CSV (C) ou Excel (X)?: ",
+                     function(r) toupper(r) %in% c("C", "X", "CSV", "XLSX"),
+                     "Digite C (CSV) ou X (Excel).")
+formato <- if (substr(toupper(formato), 1, 1) == "X") "xlsx" else "csv"
+
+ativas <- perguntar("Deseja extrair somente informações de empresas ativas? (S/N): ",
+                    function(r) toupper(r) %in% c("S", "N"),
+                    "Digite S ou N.")
+ativas <- toupper(ativas) == "S"
+
+cidade <- perguntar("Digite o código do município (de 'Municipios.zip') ou 'Brasil': ",
+                    function(r) grepl("^[0-9]{1,4}$", r) || tolower(r) == "brasil",
+                    "Digite o código do município (até 4 dígitos) ou 'Brasil'.")
+brasil <- tolower(cidade) == "brasil"
+
+if (brasil && formato == "xlsx") {
+  message("Todo o Brasil não cabe em uma planilha Excel. O arquivo será gravado em CSV.")
+  formato <- "csv"
+}
+
+pacotes <- c("data.table", if (formato == "xlsx") "openxlsx")
+faltando <- pacotes[!vapply(pacotes, requireNamespace, logical(1), quietly = TRUE)]
+if (length(faltando) > 0) {
+  stop("Instale o(s) pacote(s) necessário(s): install.packages(c(",
+       paste0("'", faltando, "'", collapse = ", "), "))")
+}
+# Silencia apenas o banner e o aviso de versão do data.table (os demais avisos continuam visíveis)
+suppressWarnings(suppressPackageStartupMessages(library(data.table)))
+
+############################################################################################
+
+### Estrutura dos dados
+
+nomes_originais <- c("CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV", "IDENTIFICADOR_MATRIZ_FILIAL",
+                     "NOME_FANTASIA", "COD_SITUACAO_CADASTRAL", "DATA_SITUACAO_CADASTRAL",
+                     "MOTIVO_SITUACAO_CADASTRAL", "NOME_DA_CIDADE_NO_EXTERIOR", "PAIS",
+                     "DATA_DE_INICIO_ATIVIDADE", "CNAE_FISCAL_PRINCIPAL", "CNAE_FISCAL_SECUNDARIA",
+                     "TIPO_DE_LOGRADOURO", "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO",
+                     "CEP", "UF", "MUNICIPIO", "DDD_1", "TELEFONE_1", "DDD_2",
+                     "TELEFONE_2", "DDD_DO_FAX", "FAX", "CORREIO_ELETRONICO",
+                     "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL")
+
+colunas_data <- c("Data_SitCadastral_Padrao", "Data_inicio_Padrao", "Data_SitEspecial_Padrao")
+
+### Tabelas de conversão
+
+matriz_filial <- c("1" = "Matriz", "2" = "Filial")
+
+situacao_cadastral <- c("01" = "NULA", "02" = "ATIVA", "03" = "SUSPENSA",
+                        "04" = "INAPTA", "08" = "BAIXADA")
+
+motivos <- c(
+  "00" = "SEM MOTIVO",
+  "01" = "EXTINCAO POR ENCERRAMENTO LIQUIDACAO VOLUNTARIA",
+  "02" = "INCORPORACAO",
+  "03" = "FUSAO",
+  "04" = "CISAO TOTAL",
+  "05" = "ENCERRAMENTO DA FALENCIA",
+  "06" = "ENCERRAMENTO DA LIQUIDACAO",
+  "07" = "ELEVACAO A MATRIZ",
+  "08" = "TRANSPASSE",
+  "09" = "NAO INICIO DE ATIVIDADE",
+  "10" = "EXTINCAO PELO ENCERRAMENTO DA LIQUIDACAO JUDICIAL",
+  "11" = "ANULACAO POR MULTIPLICIDADE",
+  "12" = "ANULACAO ONLINE DE OFICIO",
+  "13" = "OMISSA CONTUMAZ",
+  "14" = "OMISSA NAO LOCALIZADA",
+  "15" = "INEXISTENCIA DE FATO",
+  "16" = "ANULACAO POR VICIOS",
+  "17" = "BAIXA INICIADA EM ANALISE",
+  "18" = "INTERRUPCAO TEMPORARIA DAS ATIVIDADES",
+  "21" = "PEDIDO DE BAIXA INDEFERIDA",
+  "24" = "POR EMISSAO CERTIDAO NEGATIVA",
+  "28" = "TRANSFERENCIA FILIAL CONDICAO MATRIZ",
+  "31" = "EXTINCAO-UNIFICACAO DA FILIAL",
+  "33" = "TRANSFERENCIA DO ORGAO LOCAL A CONDICAO DE FILIAL DO ORGAO REGIONAL",
+  "34" = "ANULACAO DE INSCRICAO INDEVIDA",
+  "35" = "EMPRESA ESTRANGEIRA AGUARDANDO DOCUMENTACAO",
+  "36" = "PRATICA IRREGULAR DE OPERACAO DE COMERCIO EXTERIOR",
+  "37" = "BAIXA DE PRODUTOR RURAL",
+  "38" = "BAIXA DEFERIDA PELA RFB AGUARDANDO ANALISE DO CONVENENTE",
+  "39" = "BAIXA DEFERIDA PELA RFB E INDEFERIDA PELO CONVENENTE",
+  "40" = "BAIXA INDEFERIDA PELA RFB E AGUARDANDO ANALISE DO CONVENENTE",
+  "41" = "BAIXA INDEFERIDA PELA RFB E DEFERIDA PELO CONVENENTE",
+  "42" = "BAIXA DEFERIDA PELA RFB E SEFIN, AGUARDANDO ANALISE SEFAZ",
+  "43" = "BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN",
+  "44" = "BAIXA DEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE SEFIN",
+  "45" = "BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFIN E INDEFERIDA PELA SEFAZ",
+  "46" = "BAIXA DEFERIDA PELA RFB E SEFAZ E INDEFERIDA PELA SEFIN",
+  "47" = "BAIXA DEFERIDA PELA RFB E SEFIN E INDEFERIDA PELA SEFAZ",
+  "48" = "BAIXA INDEFERIDA PELA RFB, AGUARDANDO ANALISE SEFAZ E DEFERIDA PELA SEFIN",
+  "49" = "BAIXA INDEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN",
+  "50" = "BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E AGUARDANDO ANALISE DA SEFIN",
+  "51" = "BAIXA INDEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE DA SEFIN",
+  "52" = "BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E INDEFERIDA PELA SEFIN",
+  "53" = "BAIXA INDEFERIDA PELA RFB E SEFAZ E DEFERIDA PELA SEFIN",
+  "54" = "EXTINCAO - TRATAMENTO DIFERENCIADO DADO AS ME E EPP (LEI COMPLEMENTAR NUMERO 123/2006)",
+  "55" = "DEFERIDO PELO CONVENENTE, AGUARDANDO ANALISE DA RFB",
+  "60" = "ARTIGO 30, VI, DA IN 748/2007",
+  "61" = "INDICIO INTERPOS. FRAUDULENTA",
+  "62" = "FALTA DE PLURALIDADE DE SOCIOS",
+  "63" = "OMISSAO DE DECLARACOES",
+  "64" = "LOCALIZACAO DESCONHECIDA",
+  "66" = "INAPTIDAO",
+  "67" = "REGISTRO CANCELADO",
+  "70" = "ANULACAO POR NAO CONFIRMADO ATO DE REGISTRO DO MEI NA JUNTA COMERCIAL",
+  "71" = "INAPTIDAO (LEI 11.941/2009 ART.54)",
+  "72" = "DETERMINACAO JUDICIAL",
+  "73" = "OMISSAO CONTUMAZ",
+  "74" = "INCONSISTENCIA CADASTRAL",
+  "75" = "OBITO DO MEI - TITULAR FALECIDO",
+  "80" = "BAIXA REGISTRADA NA JUNTA, INDEFERIDA NA RFB",
+  "82" = "SUSPENSO PERANTE A COMISSAO DE VALORES MOBILIARIOS - CVM"
+)
+
+# Atividade econômica pelos 2 primeiros dígitos do CNAE (divisão)
+
+divisoes <- list(
+  "AGRICULTURA, PECUÁRIA, PRODUÇÃO FLORESTAL, PESCA E AQÜICULTURA" = 1:3,
+  "INDÚSTRIAS EXTRATIVAS" = 5:9,
+  "INDÚSTRIAS DE TRANSFORMAÇÃO" = 10:33,
+  "ELETRICIDADE E GÁS" = 35,
+  "ÁGUA, ESGOTO, ATIVIDADES DE GESTÃO DE RESÍDUOS E DESCONTAMINAÇÃO" = 36:39,
+  "CONSTRUÇÃO" = 41:43,
+  "COMÉRCIO - REPARAÇÃO DE VEÍCULOS AUTOMOTORES E MOTOCICLETAS" = 45:47,
+  "TRANSPORTE, ARMAZENAGEM E CORREIO" = 49:53,
+  "ALOJAMENTO E ALIMENTAÇÃO" = 55:56,
+  "INFORMAÇÃO E COMUNICAÇÃO" = 58:63,
+  "ATIVIDADES FINANCEIRAS, DE SEGUROS E SERVIÇOS RELACIONADOS" = 64:66,
+  "ATIVIDADES IMOBILIÁRIAS" = 68,
+  "ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS" = 69:75,
+  "ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES" = 77:82,
+  "ADMINISTRAÇÃO PÚBLICA, DEFESA E SEGURIDADE SOCIAL" = 84,
+  "EDUCAÇÃO" = 85,
+  "SAÚDE HUMANA E SERVIÇOS SOCIAIS" = 86:88,
+  "ARTES, CULTURA, ESPORTE E RECREAÇÃO" = 90:93,
+  "OUTRAS ATIVIDADES DE SERVIÇOS" = 94:96,
+  "SERVIÇOS DOMÉSTICOS" = 97,
+  "ORGANISMOS INTERNACIONAIS E OUTRAS INSTITUIÇÕES EXTRATERRITORIAIS" = 99
+)
+
+atividades <- setNames(rep(names(divisoes), lengths(divisoes)),
+                       sprintf("%02d", unlist(divisoes)))
+
+############################################################################################
+
+### Funções auxiliares
+
+# Completa com zeros à esquerda (mantém NA)
+zeros <- function(x, n) {
+  ifelse(is.na(x), NA_character_, paste0(strrep("0", pmax(n - nchar(x), 0L)), x))
+}
+
+# Pedaço do endereço seguido de ", ". Partes vazias são omitidas
+sufixo <- function(x, prefixo = "") {
+  ifelse(is.na(x) | x == "", "", paste0(prefixo, x, ", "))
+}
+
+# Seleciona arquivos. Windows: caixa de diálogo; outros sistemas: caminhos digitados
+selecionar_arquivos <- function(mensagem, multi = FALSE) {
+  message(mensagem)
+  if (.Platform$OS.type == "windows") {
+    arquivos <- choose.files(multi = multi)
+  } else {
+    resposta <- readline("Digite o(s) caminho(s) completo(s), separados por ';': ")
+    arquivos <- trimws(strsplit(resposta, ";")[[1]])
+  }
+  if (length(arquivos) == 0 || all(is.na(arquivos) | arquivos == "")) {
+    stop("Nenhum arquivo foi selecionado. Reinicie o programa.")
+  }
+  if (!all(file.exists(arquivos))) {
+    stop("Arquivo não encontrado: ", paste(arquivos[!file.exists(arquivos)], collapse = ", "))
+  }
+  arquivos
+}
+
+# Se o arquivo for .zip, extrai para uma pasta temporária
+extrair_se_zip <- function(arquivo) {
+  if (grepl("\\.zip$", arquivo, ignore.case = TRUE)) {
+    pasta <- tempfile("cnpj_")
+    dir.create(pasta)
+    list(caminhos = unzip(arquivo, exdir = pasta), pasta = pasta)
+  } else {
+    list(caminhos = arquivo, pasta = NULL)
+  }
+}
+
+# Leitura dos arquivos da Receita: ';', aspas, sem cabeçalho, Latin-1, tudo como texto
+ler_csv_receita <- function(caminho) {
+  fread(caminho, sep = ";", header = FALSE, colClasses = "character",
+        encoding = "Latin-1", na.strings = NULL, showProgress = FALSE)
+}
+
+# Converte texto para UTF-8 e campos vazios para NA
+limpar_texto <- function(d) {
+  for (j in names(d)) {
+    valores <- enc2utf8(d[[j]])
+    valores[valores == ""] <- NA_character_
+    set(d, j = j, value = valores)
+  }
+  d
+}
+
+# Monta o data.table final (41 colunas) a partir dos dados de Estabelecimentos
+montar_saida <- function(d, cnae) {
+
+  basico <- zeros(d$CNPJ_BASICO, 8)
+  ordem <- zeros(d$CNPJ_ORDEM, 4)
+  dv <- zeros(d$CNPJ_DV, 2)
+  cod_sit <- zeros(d$COD_SITUACAO_CADASTRAL, 2)
+  cod_motivo <- zeros(d$MOTIVO_SITUACAO_CADASTRAL, 2)
+  cnae_principal <- zeros(d$CNAE_FISCAL_PRINCIPAL, 7)
+
+  data_sit <- as.Date(d$DATA_SITUACAO_CADASTRAL, format = "%Y%m%d")
+  data_inicio <- as.Date(d$DATA_DE_INICIO_ATIVIDADE, format = "%Y%m%d")
+  data_sit_esp <- as.Date(d$DATA_DA_SITUACAO_ESPECIAL, format = "%Y%m%d")
+
+  logradouro_completo <- trimws(paste(ifelse(is.na(d$TIPO_DE_LOGRADOURO), "", d$TIPO_DE_LOGRADOURO),
+                                      ifelse(is.na(d$LOGRADOURO), "", d$LOGRADOURO)))
+  endereco <- sub(", $", "", paste0(sufixo(logradouro_completo), sufixo(d$NUMERO),
+                                    sufixo(d$COMPLEMENTO), sufixo(d$BAIRRO),
+                                    sufixo(d$CEP, "CEP: ")))
+  endereco[endereco == ""] <- NA_character_
+
+  data.table(
+    CNPJ_BASICO = basico,
+    CNPJ_ORDEM = ordem,
+    CNPJ_DV = dv,
+    CNPJ_COMPLETO = paste0(basico, ordem, dv),
+    IDENTIFICADOR_MATRIZ_FILIAL = d$IDENTIFICADOR_MATRIZ_FILIAL,
+    Matriz_Filial = unname(matriz_filial[d$IDENTIFICADOR_MATRIZ_FILIAL]),
+    NOME_FANTASIA = d$NOME_FANTASIA,
+    COD_SITUACAO_CADASTRAL = cod_sit,
+    SITUACAO_CADASTRAL = unname(situacao_cadastral[cod_sit]),
+    DATA_SITUACAO_CADASTRAL = d$DATA_SITUACAO_CADASTRAL,
+    Data_SitCadastral_Padrao = data_sit,
+    MOTIVO_SITUACAO_CADASTRAL = cod_motivo,
+    Descritor_Motivo_SitCadastral = unname(motivos[cod_motivo]),
+    NOME_DA_CIDADE_NO_EXTERIOR = d$NOME_DA_CIDADE_NO_EXTERIOR,
+    PAIS = d$PAIS,
+    DATA_DE_INICIO_ATIVIDADE = d$DATA_DE_INICIO_ATIVIDADE,
+    Data_inicio_Padrao = data_inicio,
+    Ano_Inicio = as.integer(format(data_inicio, "%Y")),
+    CNAE_FISCAL_PRINCIPAL = cnae_principal,
+    Descritor_CNAE = cnae$Descritor_CNAE[match(cnae_principal, cnae$CNAE_FISCAL_PRINCIPAL)],
+    Atividade_Economica = unname(atividades[substr(cnae_principal, 1, 2)]),
+    CNAE_Secundaria = d$CNAE_FISCAL_SECUNDARIA,
+    TIPO_DE_LOGRADOURO = d$TIPO_DE_LOGRADOURO,
+    LOGRADOURO = d$LOGRADOURO,
+    NUMERO = d$NUMERO,
+    COMPLEMENTO = d$COMPLEMENTO,
+    BAIRRO = d$BAIRRO,
+    CEP = d$CEP,
+    UF = d$UF,
+    Endereco_Completo = endereco,
+    Cod_Municipio = d$MUNICIPIO,
+    DDD_1 = d$DDD_1,
+    TELEFONE_1 = d$TELEFONE_1,
+    DDD_2 = d$DDD_2,
+    TELEFONE_2 = d$TELEFONE_2,
+    DDD_DO_FAX = d$DDD_DO_FAX,
+    FAX = d$FAX,
+    CORREIO_ELETRONICO = d$CORREIO_ELETRONICO,
+    SITUACAO_ESPECIAL = d$SITUACAO_ESPECIAL,
+    DATA_DA_SITUACAO_ESPECIAL = d$DATA_DA_SITUACAO_ESPECIAL,
+    Data_SitEspecial_Padrao = data_sit_esp
+  )
+}
+
+# No CSV as datas são gravadas como dd/mm/aaaa
+datas_para_texto <- function(dt) {
+  dt <- copy(dt)
+  for (j in colunas_data) set(dt, j = j, value = format(dt[[j]], "%d/%m/%Y"))
+  dt
+}
+
+# Grava CSV (';', UTF-8 com BOM). Com primeira = FALSE acrescenta ao arquivo existente
+gravar_csv <- function(dt, arquivo, primeira = TRUE) {
+  if (primeira) {
+    con <- file(arquivo, "wb")
+    writeBin(as.raw(c(0xEF, 0xBB, 0xBF)), con)
+    close(con)
+  }
+  fwrite(datas_para_texto(dt), arquivo, sep = ";", na = "", append = TRUE, col.names = primeira)
+}
+
+gravar_xlsx <- function(dt, arquivo) {
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "Completo")
+  openxlsx::writeData(wb, "Completo", dt, withFilter = TRUE)
+  openxlsx::addStyle(wb, "Completo", openxlsx::createStyle(numFmt = "dd/mm/yyyy"),
+                     rows = 2:(nrow(dt) + 1), cols = match(colunas_data, names(dt)),
+                     gridExpand = TRUE)
+  openxlsx::freezePane(wb, "Completo", firstRow = TRUE)
+  openxlsx::saveWorkbook(wb, arquivo, overwrite = TRUE)
+}
+
+############################################################################################
+
+# Seleção dos arquivos
+
+arquivos <- selecionar_arquivos("Selecione as bases de 'Estabelecimentos' que irão compor o arquivo final", multi = TRUE)
 
 # Leitura do arquivo que contém os descritores dos CNAES. Arquivo Cnaes.zip
 
-print("Selecione o arquivo com os códigos CNAE - Classificação Nacional de Atividades Econômicas")
+arquivo_cnae <- selecionar_arquivos("Selecione o arquivo com os códigos CNAE - Classificação Nacional de Atividades Econômicas")
 
-cnae<-read.csv(file.choose(), sep=";", header = F,colClasses = "character")
+message("Lendo arquivos...Aguarde")
 
-print("Lendo arquivos...Aguarde")
+extraido <- extrair_se_zip(arquivo_cnae)
+cnae <- ler_csv_receita(extraido$caminhos[1])
+if (!is.null(extraido$pasta)) unlink(extraido$pasta, recursive = TRUE)
 
-# Ajuste dos descritores CNAE
+cnae <- limpar_texto(cnae[, 1:2])
+setnames(cnae, c("CNAE_FISCAL_PRINCIPAL", "Descritor_CNAE"))
+cnae[, CNAE_FISCAL_PRINCIPAL := zeros(CNAE_FISCAL_PRINCIPAL, 7)]
 
-colnames(cnae)[1]<-"CNAE_FISCAL_PRINCIPAL"
-colnames(cnae)[2]<-"Descritor_CNAE"
+# Nome do arquivo de saída
 
-cnae_2<-cnae
-colnames(cnae_2)[1]<-"CNAE_FISCAL_SECUNDARIA"
-colnames(cnae_2)[2]<-"Descritor_CNAE_2"
+nome_base <- paste0("dados_cnpj_", if (brasil) "brasil" else paste0("cidade_codigo_", zeros(cidade, 4)),
+                    if (ativas) "_ativas" else "")
+arquivo_saida <- file.path(getwd(), paste0(nome_base, ".", formato))
 
-#Fusão de todos arquivos 'Estabelecimentos.zip'
+if (!brasil) cidade <- zeros(cidade, 4)
 
-if (length(corpus)==1){
+############################################################################################
 
-df<-read.csv(corpus, header = F, sep=";", colClasses = "character")    
-  
+# Fusão de todos os arquivos 'Estabelecimentos'. Cada arquivo é filtrado assim que é lido,
+# para não carregar na memória os dados de outros municípios
+
+if (brasil) {
+  message("Os dados de todos os CNPJ do Brasil estão sendo fundidos. Esta operação é demorada.")
+  if (file.exists(arquivo_saida)) file.remove(arquivo_saida)
 } else {
-
- 
-df<-data.frame()
-
-for (i in corpus){
-
-extract<-read.csv(i, header = F, sep=";", colClasses = "character")
-
-df<-rbind(df, extract)
-
+  message("Os dados de CNPJ da cidade de código ", cidade, " estão sendo combinados. Esta operação é demorada.")
 }
+
+partes <- list()
+total <- 0L
+primeira <- TRUE
+
+for (k in seq_along(arquivos)) {
+
+  extraido <- extrair_se_zip(arquivos[k])
+
+  for (caminho in extraido$caminhos) {
+
+    d <- ler_csv_receita(caminho)
+
+    if (ncol(d) != length(nomes_originais)) {
+      stop("O arquivo ", basename(caminho), " tem ", ncol(d), " colunas, mas eram esperadas ",
+           length(nomes_originais), ". Verifique se é um arquivo 'Estabelecimentos'.")
+    }
+    setnames(d, nomes_originais)
+
+    if (!brasil) d <- d[MUNICIPIO == cidade]
+    if (ativas) d <- d[COD_SITUACAO_CADASTRAL %in% c("02", "2")]
+
+    message(sprintf("[%d/%d] %s - %s registros selecionados", k, length(arquivos),
+                    basename(caminho), format(nrow(d), big.mark = ".", decimal.mark = ",")))
+
+    if (nrow(d) > 0) {
+
+      parte <- montar_saida(limpar_texto(d), cnae)
+      total <- total + nrow(parte)
+
+      if (brasil) {
+        gravar_csv(parte, arquivo_saida, primeira)
+        primeira <- FALSE
+      } else {
+        partes[[length(partes) + 1]] <- parte
+      }
+    }
+
+    rm(d)
+    invisible(gc())
+  }
+
+  if (!is.null(extraido$pasta)) unlink(extraido$pasta, recursive = TRUE)
 }
-#Ajustes de cabeçalhos
 
-colnames(df)<-c("CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV", "IDENTIFICADOR_MATRIZ_FILIAL", 
-                "NOME_FANTASIA", "COD_SITUACAO_CADASTRAL", "DATA_SITUACAO_CADASTRAL", 
-                "MOTIVO_SITUACAO_CADASTRAL", "NOME_DA_CIDADE_NO_EXTERIOR", "PAIS", 
-                "DATA_DE_INICIO_ATIVIDADE", "CNAE_FISCAL_PRINCIPAL", "CNAE_FISCAL_SECUNDARIA", 
-                "TIPO_DE_LOGRADOURO", "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO", 
-                "CEP", "UF", "MUNICIPIO", "DDD_1", "TELEFONE_1", "DDD_2", 
-                "TELEFONE_2", "DDD_DO_FAX", "FAX", "CORREIO_ELETRONICO", 
-                "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL")
+if (total == 0) {
+  stop("Não há registros para o código desta cidade. Possivelmente o código da cidade foi digitado incorretamente. Reinicie o programa.")
+}
 
-#Seleciona a cidade de interesse segundo o código da cidade
-#Consulte o arquivo 'Municipios.zip'
+############################################################################################
 
-cidade<-readline("Digite o código da cidade que deseja os dados das empresas: ")
+# Gravação do arquivo final
 
-if (cidade == 'Brasil'){
-  df_sc<-df
+if (!brasil) {
 
+  df_final <- rbindlist(partes)
+  rm(partes)
+
+  if (formato == "xlsx" && nrow(df_final) > 1048575) {
+    message("Há mais linhas do que o Excel comporta. O arquivo será gravado em CSV.")
+    formato <- "csv"
+    arquivo_saida <- file.path(getwd(), paste0(nome_base, ".csv"))
+  }
+
+  if (formato == "xlsx") {
+    gravar_xlsx(df_final, arquivo_saida)
   } else {
-
-df_sc<-unique(df[df$MUNICIPIO==cidade, ])
-
+    gravar_csv(df_final, arquivo_saida)
   }
-
-if (all(is.na(df_sc))==TRUE){
-  stop("Não há registros para o código desta cidade. Possivelmente o código da cidade ou 'Brasil' foi digitado incorretamente. Reinicie o programa.")
-
-} else{
-
-if(cidade=="Brasil"){     
-   print("Aguarde enquanto os dados de todos CNPJ do Brasil estão sendo fundidos. Está operação é demorada.")}
-else{
-  print(paste0("Os dados de CNPJ da cidade de código ",cidade," estão sendo combinados. Esta operação é demorada." ))
-} }
-
-
-### Ajuste do CNPJ
-
-remove(df, extract)
-
-### looping para ajuste do CNPJ Básico
-
-basico<-c()
-cnpj_b<-c()
-
-for (i in 1:dim(df_sc)[1]){
-  
-  if(is.na(df_sc[i,1])){
-    cnpj_b<-df_sc[i,1]
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==8){
-    cnpj_b<-df_sc[i,1]
-  } 
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==1){
-    cnpj_b<-paste0("0000000",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==2){
-    cnpj_b<-paste0("000000",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==3){
-    cnpj_b<-paste0("00000",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==4){
-    cnpj_b<-paste0("0000",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==5){
-    cnpj_b<-paste0("000",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==6){
-    cnpj_b<-paste0("00",df_sc[i,1])
-  }
-  
-  if (!is.na(df_sc[i,1]) && nchar(df_sc[i,1])==7){
-    cnpj_b<-paste0("0",df_sc[i,1])
-  }
-  
-basico<-append(basico, cnpj_b)  
-  
 }
 
+message("Os dados foram combinados corretamente e foram salvos em: ", arquivo_saida)
 
-#### looping para ajuste do Ordem do CNPJ (DV)
-
-ordem<-c()
-cnpj_o<-c()
-
-for (i in 1:dim(df_sc)[1]){
-  
-  if(is.na(df_sc[i,2])){
-    cnpj_o<-df_sc[i,2]
-  }
-  
-  if (!is.na(df_sc[i,2]) && nchar(df_sc[i,2])==4){
-    cnpj_o<-df_sc[i,2]
-  }
-  
-  if (!is.na(df_sc[i,2]) && nchar(df_sc[i,2])==1){
-    cnpj_o<-paste0("000",df_sc[i,2])
-  }
-  
-  if (!is.na(df_sc[i,2]) && nchar(df_sc[i,2])==2){
-    cnpj_o<-paste0("00",df_sc[i,2])
-  }
-  
-  if (!is.na(df_sc[i,2]) && nchar(df_sc[i,2])==3){
-    cnpj_o<-paste0("0",df_sc[i,2])
-  }
-  
-  ordem<-append(ordem, cnpj_o)  
-  
-}
-
-#### looping para ajuste do Digito Verificador (DV)
-
-dv<-c()
-cnpj_dv<-c()
-
-for (i in 1:dim(df_sc)[1]){
-  
-  if(is.na(df_sc[i,3])){
-    cnpj_dv<-df_sc[i,3]
-  }
-  
-  if (!is.na(df_sc[i,3]) && nchar(df_sc[i,3])==2){
-    cnpj_dv<-df_sc[i,3]
-  }
-  
-  if (!is.na(df_sc[i,3]) && nchar(df_sc[i,3])==1){
-    cnpj_dv<-paste0("0",df_sc[i,3])
-  }
-  
-  dv<-append(dv, cnpj_dv)  
-  
-}
-
-### Concatena CNPJ Completo com 14 digitos
-
-cnpj_completo<-c()
-
-for (i in 1:dim(df_sc)[1]){
-  
-  cnpj_completo[i]<-paste0(basico[i],ordem[i],dv[i])
-  
-}
-
-### Ajuste do endereco completo
-
-end<-c()
-
-for (i in 1:dim(df_sc)[1]){
-  
-  end[i]<-paste0(df_sc[i,14]," ",df_sc[i,15],", ",df_sc[i,16], ", ", df_sc[i,17],
-                 ", ", df_sc[i,18],", CEP: ", df_sc[i,19])
-}
-
-### Ajuste matriz e filial
-
-mtz_filial<-gsub("2", "Filial", df_sc$IDENTIFICADOR_MATRIZ_FILIAL)
-mtz_filial_2<-gsub("1", "Matriz", mtz_filial)
-
-### Ajuste situação cadastral
-
-sit_cad<-gsub("01", "NULA", df_sc$COD_SITUACAO_CADASTRAL)
-sit_cad_1<-gsub("02", "ATIVA", sit_cad)
-sit_cad_2<-gsub("2", "ATIVA", sit_cad_1)
-sit_cad_3<-gsub("3", "SUSPENSA", sit_cad_2)
-sit_cad_4<-gsub("4", "INAPTA", sit_cad_3)
-sit_cad_5<-gsub("08", "BAIXADA", sit_cad_4)
-sit_cad_6<-gsub("8", "BAIXADA", sit_cad_5)
-sit_cad_7<-gsub("1", "NULA", sit_cad_6)
-sit_cad_8<-gsub("0INAPTA", "INAPTA",sit_cad_7)
-sit_cad_9<-gsub("0SUSPENSA", "SUSPENSA",sit_cad_8)
-
-
-### Ajuste data de inicio
-
-data_inicio<-format(as.Date(as.character(df_sc$DATA_DE_INICIO_ATIVIDADE), format="%Y%m%d"),"%d/%m/%Y")
-
-### Extrai ano de inicio
-
-ano_inicio<-substr(as.character(df_sc$DATA_DE_INICIO_ATIVIDADE), 1, 4)
-
-### Ajusta data sit. cadastral
-
-data_sit<-format(as.Date(as.character(df_sc$DATA_SITUACAO_CADASTRAL), format="%Y%m%d"),"%d/%m/%Y")
-
-### Ajusta data sit. especial
-
-data_sit_esp<-format(as.Date(as.character(df_sc$DATA_DA_SITUACAO_ESPECIAL), format="%Y%m%d"),"%d/%m/%Y")
-
-### Ajusta sit. Especial
-
-motivo_sit <- ' "00";"SEM MOTIVO"
-"01";"EXTINCAO POR ENCERRAMENTO LIQUIDACAO VOLUNTARIA"
-"02";"INCORPORACAO"
-"03";"FUSAO"
-"04";"CISAO TOTAL"
-"05";"ENCERRAMENTO DA FALENCIA"
-"06";"ENCERRAMENTO DA LIQUIDACAO"
-"07";"ELEVACAO A MATRIZ"
-"08";"TRANSPASSE"
-"09";"NAO INICIO DE ATIVIDADE"
-"0";"SEM MOTIVO"
-"1";"EXTINCAO POR ENCERRAMENTO LIQUIDACAO VOLUNTARIA"
-"2";"INCORPORACAO"
-"3";"FUSAO"
-"4";"CISAO TOTAL"
-"5";"ENCERRAMENTO DA FALENCIA"
-"6";"ENCERRAMENTO DA LIQUIDACAO"
-"7";"ELEVACAO A MATRIZ"
-"8";"TRANSPASSE"
-"9";"NAO INICIO DE ATIVIDADE"
-"10";"EXTINCAO PELO ENCERRAMENTO DA LIQUIDACAO JUDICIAL"
-"11";"ANULACAO POR MULTICIPLIDADE"
-"12";"ANULACAO ONLINE DE OFICIO"
-"13";"OMISSA CONTUMAZ"
-"14";"OMISSA NAO LOCALIZADA"
-"15";"INEXISTENCIA DE FATO"
-"16";"ANULACAO POR VICIOS"
-"17";"BAIXA INICIADA EM ANALISE"
-"18";"INTERRUPCAO TEMPORARIA DAS ATIVIDADES"
-"21";"PEDIDO DE BAIXA INDEFERIDA"
-"24";"POR EMISSAO CERTIDAO NEGATIVA"
-"28";"TRANSFERENCIA FILIAL CONDICAO MATRIZ"
-"31";"EXTINCAO-UNIFICACAO DA FILIAL"
-"33";"TRANSFERENCIA DO ORGAO LOCAL A CONDICAO DE FILIAL DO ORGAO REGIONAL"
-"34";"ANULACAO DE INSCRICAO INDEVIDA"
-"35";"EMPRESA ESTRANGEIRA AGUARDANDO DOCUMENTACAO"
-"36";"PRATICA IRREGULAR DE OPERACAO DE COMERCIO EXTERIOR"
-"37";"BAIXA DE PRODUTOR RURAL"
-"38";"BAIXA DEFERIDA PELA RFB AGUARDANDO ANALISE DO CONVENENTE"
-"39";"BAIXA DEFERIDA PELA RFB E INDEFERIDA PELO CONVENENTE"
-"40";"BAIXA INDEFERIDA PELA RFB E AGUARDANDO ANALISE DO CONVENENTE"
-"41";"BAIXA INDEFERIDA PELA RFB E DEFERIDA PELO CONVENENTE"
-"42";"BAIXA DEFERIDA PELA RFB E SEFIN, AGUARDANDO ANALISE SEFAZ"
-"43";"BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN"
-"44";"BAIXA DEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE SEFIN"
-"45";"BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFIN E INDEFERIDA PELA SEFAZ"
-"46";"BAIXA DEFERIDA PELA RFB E SEFAZ E INDEFERIDA PELA SEFIN"
-"47";"BAIXA DEFERIDA PELA RFB E SEFIN E INDEFERIDA PELA SEFAZ"
-"48";"BAIXA INDEFERIDA PELA RFB, AGARDANDO ANALISE SEFAZ E DEFERIDA PELA SEFIN"
-"49";"BAIXA INDEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN"
-"50";"BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E AGUARDANDO ANALISE DA SEFIN"
-"51";"BAIXA INDEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE DA SEFIN"
-"52";"BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E INDEFERIDA PELA SEFIN"
-"53";"BAIXA INDEFERIDA PELA RFB E SEFAZ E DEFERIDA PELA SEFIN"
-"54";"EXTINCAO - TRATAMENTO DIFERENCIADO DADO AS ME E EPP (LEI COMPLEMENTAR NUMERO 123/2006)"
-"55";"DEFERIDO PELO CONVENENTE, AGUARDANDO ANALISE DA RFB"
-"60";"ARTIGO 30, VI, DA IN 748/2007"
-"61";"INDICIO INTERPOS. FRAUDULENTA"
-"62";"FALTA DE PLURALIDADE DE SOCIOS"
-"63";"OMISSAO DE DECLARACOES"
-"64";"LOCALIZACAO DESCONHECIDA"
-"66";"INAPTIDAO"
-"67";"REGISTRO CANCELADO"
-"70";"ANULACAO POR NAO CONFIRMADO ATO DE REGISTRO DO MEI NA JUNTA COMERCIAL"
-"71";"INAPTIDAO (LEI 11.941/2009 ART.54)"
-"72";"DETERMINACAO JUDICIAL"
-"73";"OMISSAO CONTUMAZ"
-"74";"INCONSISTENCIA CADASTRAL"
-"75";"OBITO DO MEI - TITULAR FALECIDO"
-"80";"BAIXA REGISTRADA NA JUNTA, INDEFERIDA NA RFB"
-"82";"SUSPENSO PERANTE A COMISSAO DE VALORES MOBILIARIOS - CVM"'
-
-linhas <- unlist(strsplit(motivo_sit, "\n"))
-dados <- do.call(rbind, strsplit(linhas, ";"))
-dados <- gsub('"', '', dados)
-mapa <- setNames(dados[, 2], dados[, 1])
-motivo_sit_cad<- mapa[as.character(df_sc$MOTIVO_SITUACAO_CADASTRAL)]
-
-#### Atividade economica
-
-atv_eco<-'"01";"AGRICULTURA, PECUÁRIA, PRODUÇÃO FLORESTAL, PESCA E AQÜICULTURA"
-"02";"AGRICULTURA, PECUÁRIA, PRODUÇÃO FLORESTAL, PESCA E AQÜICULTURA"
-"03";"AGRICULTURA, PECUÁRIA, PRODUÇÃO FLORESTAL, PESCA E AQÜICULTURA"
-"05";"INDÚSTRIAS EXTRATIVAS"
-"06";"INDÚSTRIAS EXTRATIVAS"
-"07";"INDÚSTRIAS EXTRATIVAS"
-"08";"INDÚSTRIAS EXTRATIVAS"
-"09";"INDÚSTRIAS EXTRATIVAS"
-"10";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"11";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"12";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"13";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"14";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"15";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"16";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"17";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"18";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"19";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"20";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"21";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"22";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"23";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"24";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"25";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"26";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"27";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"28";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"29";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"30";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"31";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"32";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"33";"INDÚSTRIAS DE TRANSFORMAÇÃO"
-"35";"ELETRICIDADE E GÁS"
-"36";"ÁGUA, ESGOTO, ATIVIDADES DE GESTÃO DE RESÍDUOS E DESCONTAMINAÇÃO"
-"37";"ÁGUA, ESGOTO, ATIVIDADES DE GESTÃO DE RESÍDUOS E DESCONTAMINAÇÃO"
-"38";"ÁGUA, ESGOTO, ATIVIDADES DE GESTÃO DE RESÍDUOS E DESCONTAMINAÇÃO"
-"39";"ÁGUA, ESGOTO, ATIVIDADES DE GESTÃO DE RESÍDUOS E DESCONTAMINAÇÃO"
-"41";"CONSTRUÇÃO"
-"42";"CONSTRUÇÃO"
-"43";"CONSTRUÇÃO"
-"45";"COMÉRCIO - REPARAÇÃO DE VEÍCULOS AUTOMOTORES E MOTOCICLETAS"
-"46";"COMÉRCIO- REPARAÇÃO DE VEÍCULOS AUTOMOTORES E MOTOCICLETAS"
-"47";"COMÉRCIO- REPARAÇÃO DE VEÍCULOS AUTOMOTORES E MOTOCICLETAS"
-"49";"TRANSPORTE, ARMAZENAGEM E CORREIO"
-"50";"TRANSPORTE, ARMAZENAGEM E CORREIO"
-"51";"TRANSPORTE, ARMAZENAGEM E CORREIO"
-"52";"TRANSPORTE, ARMAZENAGEM E CORREIO"
-"53";"TRANSPORTE, ARMAZENAGEM E CORREIO"
-"55";"ALOJAMENTO E ALIMENTAÇÃO"
-"56";"ALOJAMENTO E ALIMENTAÇÃO"
-"58";"INFORMAÇÃO E COMUNICAÇÃO"
-"59";"INFORMAÇÃO E COMUNICAÇÃO"
-"60";"INFORMAÇÃO E COMUNICAÇÃO"
-"61";"INFORMAÇÃO E COMUNICAÇÃO"
-"62";"INFORMAÇÃO E COMUNICAÇÃO"
-"63";"INFORMAÇÃO E COMUNICAÇÃO"
-"64";"ATIVIDADES FINANCEIRAS, DE SEGUROS E SERVIÇOS RELACIONADOS"
-"65";"ATIVIDADES FINANCEIRAS, DE SEGUROS E SERVIÇOS RELACIONADOS"
-"66";"ATIVIDADES FINANCEIRAS, DE SEGUROS E SERVIÇOS RELACIONADOS"
-"68";"ATIVIDADES IMOBILIÁRIAS"
-"69";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"70";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"71";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"72";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"73";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"74";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"75";"ATIVIDADES PROFISSIONAIS, CIENTÍFICAS E TÉCNICAS"
-"77";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"78";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"79";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"80";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"81";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"82";"ATIVIDADES ADMINISTRATIVAS E SERVIÇOS COMPLEMENTARES"
-"84";"ADMINISTRAÇÃO PÚBLICA, DEFESA E SEGURIDADE SOCIAL"
-"85";"EDUCAÇÃO"
-"86";"SAÚDE HUMANA E SERVIÇOS SOCIAIS"
-"87";"SAÚDE HUMANA E SERVIÇOS SOCIAIS"
-"88";"SAÚDE HUMANA E SERVIÇOS SOCIAIS"
-"90";"ARTES, CULTURA, ESPORTE E RECREAÇÃO"
-"91";"ARTES, CULTURA, ESPORTE E RECREAÇÃO"
-"92";"ARTES, CULTURA, ESPORTE E RECREAÇÃO"
-"93";"ARTES, CULTURA, ESPORTE E RECREAÇÃO"
-"94";"OUTRAS ATIVIDADES DE SERVIÇOS"
-"95";"OUTRAS ATIVIDADES DE SERVIÇOS"
-"96";"OUTRAS ATIVIDADES DE SERVIÇOS"
-"97";"SERVIÇOS DOMÉSTICOS"
-"99";"ORGANISMOS INTERNACIONAIS E OUTRAS INSTITUIÇÕES EXTRATERRITORIAIS"'
-
-linhas1 <- unlist(strsplit(atv_eco, "\n"))
-dados1 <- do.call(rbind, strsplit(linhas1, ";"))
-dados1 <- gsub('"', '', dados1)
-mapa1 <- setNames(dados1[, 2], dados1[, 1])
-atividade_economica<- mapa1[as.character(substr(df_sc$CNAE_FISCAL_PRINCIPAL, 1, 2))]
-
-### Novo dataframe
-
-df_sc_total<-data.frame(df_sc$CNPJ_BASICO,df_sc$CNPJ_ORDEM,df_sc$CNPJ_DV,
-                        cnpj_completo ,df_sc$IDENTIFICADOR_MATRIZ_FILIAL,mtz_filial_2,
-                        df_sc$NOME_FANTASIA, df_sc$COD_SITUACAO_CADASTRAL,
-                        sit_cad_9,df_sc$DATA_SITUACAO_CADASTRAL,data_sit,
-                        df_sc$MOTIVO_SITUACAO_CADASTRAL,motivo_sit_cad, df_sc$NOME_DA_CIDADE_NO_EXTERIOR,
-                        df_sc$PAIS, df_sc$DATA_DE_INICIO_ATIVIDADE,data_inicio,ano_inicio,
-                        df_sc$CNAE_FISCAL_PRINCIPAL, atividade_economica,
-                        df_sc$CNAE_FISCAL_SECUNDARIA,df_sc$TIPO_DE_LOGRADOURO,
-                        df_sc$LOGRADOURO, df_sc$NUMERO, df_sc$COMPLEMENTO, df_sc$BAIRRO,
-                        df_sc$CEP, df_sc$UF,end,df_sc$MUNICIPIO, df_sc$DDD_1, df_sc$TELEFONE_1,
-                        df_sc$DDD_2, df_sc$TELEFONE_2, df_sc$DDD_DO_FAX, df_sc$FAX,
-                        df_sc$CORREIO_ELETRONICO, df_sc$SITUACAO_ESPECIAL, df_sc$DATA_DA_SITUACAO_ESPECIAL,
-                        data_sit_esp)
-
-colnames(df_sc_total)<-c("CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV",
-                         "CNPJ_COMPLETO", "IDENTIFICADOR_MATRIZ_FILIAL", "Matriz_Filial",
-                         "NOME_FANTASIA", "COD_SITUACAO_CADASTRAL","SITUACAO_CADASTRAL", 
-                         "DATA_SITUACAO_CADASTRAL","Data_SitCadastral_Padrao","MOTIVO_SITUACAO_CADASTRAL", 
-                         "Descritor_Motivo_SitCadastral","NOME_DA_CIDADE_NO_EXTERIOR",
-                         "PAIS", "DATA_DE_INICIO_ATIVIDADE","Data_inicio_Padrao","Ano_Inicio", 
-                         "CNAE_FISCAL_PRINCIPAL", "Atividade_Economica",
-                         "CNAE_Secundaria","TIPO_DE_LOGRADOURO",
-                         "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO",
-                         "CEP", "UF", "Endereco_Completo","Cod_Municipio", "DDD_1", "TELEFONE_1",
-                         "DDD_2", "TELEFONE_2", "DDD_DO_FAX", "FAX",
-                         "CORREIO_ELETRONICO", "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL",
-                         "Data_SitEspecial_Padrao")
-
-### Merge CNAE principal
-
-remove(df_sc)
-
-cnae_merge<-merge(df_sc_total, cnae, by = "CNAE_FISCAL_PRINCIPAL", all.x = TRUE)
-
-remove(df_sc_total)
-
-#Organização final do daframe
-
-df_final <- cnae_merge %>%
-  select("CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV",
-         "CNPJ_COMPLETO", "IDENTIFICADOR_MATRIZ_FILIAL","Matriz_Filial",
-         "NOME_FANTASIA", "COD_SITUACAO_CADASTRAL","SITUACAO_CADASTRAL", "DATA_SITUACAO_CADASTRAL",
-         "Data_SitCadastral_Padrao", "MOTIVO_SITUACAO_CADASTRAL","Descritor_Motivo_SitCadastral" ,"NOME_DA_CIDADE_NO_EXTERIOR",
-         "PAIS", "DATA_DE_INICIO_ATIVIDADE","Data_inicio_Padrao","Ano_Inicio",
-         "CNAE_FISCAL_PRINCIPAL", "Descritor_CNAE","Atividade_Economica",
-         "CNAE_Secundaria","TIPO_DE_LOGRADOURO", "LOGRADOURO", "NUMERO", "COMPLEMENTO", "BAIRRO",
-         "CEP", "UF", "Endereco_Completo","Cod_Municipio", "DDD_1", "TELEFONE_1",
-         "DDD_2", "TELEFONE_2", "DDD_DO_FAX", "FAX",
-         "CORREIO_ELETRONICO", "SITUACAO_ESPECIAL", "DATA_DA_SITUACAO_ESPECIAL", "Data_SitEspecial_Padrao")
-
-df_final[df_final==""]<-NA
-
-remove(cnae_merge)
-
-write.csv(df_final, paste0("dados_cnpj_","cidade_codigo_",cidade,".csv"), sep=";", row.names = F, col.names = T,fileEncoding = "UTF-8")
-
-print("Os dados foram combinados corretamente e foram salvos em seu diretório padrão")
+############################################################################################
 
 #Visualização de dados
 
-tabela_atv_economica<-table(df_final$Atividade_Economica)
+if (!brasil) {
 
-tabela_cnae<-table(df_final$Descritor_CNAE)
+  tabela_atv_economica <- table(df_final$Atividade_Economica)
 
-inicio_atividade<-function(){return(barplot(table(df_final$Ano_Inicio),
-                                            ylim = c(0,10+max(table(df_final$Ano_Inicio))
-                                                        )))}
+  tabela_cnae <- table(df_final$Descritor_CNAE)
 
-tabela_sitcadastral<-table(df_final$SITUACAO_CADASTRAL)
+  inicio_atividade <- function() {
+    contagem <- table(df_final$Ano_Inicio)
+    return(barplot(contagem, ylim = c(0, 1.1 * max(contagem)), las = 2))
+  }
 
-tabela_sitgeral<-t(as.data.frame.matrix(as.matrix(table
-            (df_final$SITUACAO_CADASTRAL,df_final$Descritor_CNAE))))
+  tabela_sitcadastral <- table(df_final$SITUACAO_CADASTRAL)
 
-})
+  tabela_sitgeral <- t(as.data.frame.matrix(table(df_final$SITUACAO_CADASTRAL, df_final$Descritor_CNAE)))
+
+} else {
+  message("As tabelas e o gráfico de visualização não são gerados para 'Brasil'. Leia o CSV gravado para analisá-lo.")
+}
 
 }
